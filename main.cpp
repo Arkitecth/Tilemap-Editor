@@ -1,7 +1,6 @@
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlrenderer3.h"
-#include <iostream>
 #include <stdio.h>
 #include <SDL3/SDL.h>
 #include <string>
@@ -11,7 +10,6 @@ void beginImguiFrame() {
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
 }
-
 struct TileMap {
         std::string path{};
 }; 
@@ -46,6 +44,19 @@ void renderTileMap(SDL_Renderer* renderer, TileMap* tileMap) {
     SDL_DestroySurface(surface); 
 }
 
+
+
+
+void drawTileGrid(SDL_Renderer* renderer) {
+    for(int i = 0; i < 8; i++) {
+        for(int j = 0; j < 8; j++) {
+            SDL_FRect rect{float(j) * 49, float(i) * 49, 49.0f, 49.0f}; 
+	    SDL_SetRenderDrawColor(renderer, 255.0f, 255.0f, 255.0f, 255.0f); 
+            SDL_RenderRect(renderer, &rect); 
+        }
+    }
+}
+
 int main(int, char**)
 {
     SDL_Renderer* renderer{}; 
@@ -55,7 +66,7 @@ int main(int, char**)
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
-    SDL_CreateWindowAndRenderer("Tilemap Editor", 800, 800, SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_HIGH_PIXEL_DENSITY, &window, &renderer); 
+    SDL_CreateWindowAndRenderer("Tilemap Editor", 900, 500, SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_HIGH_PIXEL_DENSITY, &window, &renderer); 
 
     SDL_SetRenderVSync(renderer, 1);
     ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
@@ -91,8 +102,9 @@ int main(int, char**)
        
         ImGui::Render();
         SDL_SetRenderScale(renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0); 
         SDL_RenderClear(renderer);
-
+        drawTileGrid(renderer); 
         if (!tile.path.empty()) {
             renderTileMap(renderer, &tile); 
         }
