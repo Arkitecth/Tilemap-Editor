@@ -55,7 +55,7 @@ endif
 ##---------------------------------------------------------------------
 
 %.o:%.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -c -g -o $@ $<
 
 %.o:$(IMGUI_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
