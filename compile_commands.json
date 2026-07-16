@@ -1,0 +1,14 @@
+[
+  {
+    "file": "main.cpp",
+    "arguments": [
+      "g++",
+      "-I/opt/homebrew/include",
+      "main.cpp",
+      "-o",
+      "main"
+    ],
+    "directory": "/Users/trenttuedon/Development/projects/worldFable",
+    "output": "main"
+  }
+]
