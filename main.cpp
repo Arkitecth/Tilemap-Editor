@@ -36,6 +36,10 @@ void loadTileMap(SDL_Window* window, void* userdata) {
 }
 
 
+
+
+
+
 void renderTileMap(SDL_Renderer* renderer, TileMap* tileMap) {
     SDL_Surface* surface = SDL_LoadSurface(tileMap->path.c_str()); 
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface); 
@@ -46,14 +50,36 @@ void renderTileMap(SDL_Renderer* renderer, TileMap* tileMap) {
 
 
 
-
-void drawTileGrid(SDL_Renderer* renderer) {
+void renderSelectionGrid(SDL_Renderer* renderer) {
     for(int i = 0; i < 8; i++) {
         for(int j = 0; j < 8; j++) {
             SDL_FRect rect{float(j) * 49, float(i) * 49, 49.0f, 49.0f}; 
 	    SDL_SetRenderDrawColor(renderer, 255.0f, 255.0f, 255.0f, 255.0f); 
             SDL_RenderRect(renderer, &rect); 
         }
+    }
+}
+
+void renderExportGrid(SDL_Renderer* renderer) {
+    for(int i = 0; i < 8; i++) {
+        for(int j = 10; j < 18; j++) {
+            SDL_FRect rect{float(j) * 49, float(i) * 49, 49.0f, 49.0f}; 
+	    SDL_SetRenderDrawColor(renderer, 255.0f, 255.0f, 255.0f, 255.0f); 
+            SDL_RenderRect(renderer, &rect); 
+        }
+    }
+}
+
+
+void renderSelectionRect(SDL_Window* window, SDL_Renderer* renderer, ImGuiIO* io) {
+    if (ImGui::IsMouseHoveringRect(ImVec2{0, 0}, ImVec2{392, 392}, false)) 
+    {
+        float x = io->MousePos.x - 25;
+        float y = io->MousePos.y - 25;
+
+        SDL_FRect rect{x, y, 49.0f, 49.0f}; 
+        SDL_SetRenderDrawColor(renderer, 0.0f, 0.0f, 255.0f, 0.0f); 
+        SDL_RenderRect(renderer, &rect); 
     }
 }
 
@@ -65,7 +91,7 @@ int main(int, char**)
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-
+                                                              //
     SDL_CreateWindowAndRenderer("Tilemap Editor", 900, 500, SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_HIGH_PIXEL_DENSITY, &window, &renderer); 
 
     SDL_SetRenderVSync(renderer, 1);
@@ -104,7 +130,9 @@ int main(int, char**)
         SDL_SetRenderScale(renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0); 
         SDL_RenderClear(renderer);
-        drawTileGrid(renderer); 
+        renderSelectionGrid(renderer); 
+        renderSelectionRect(window, renderer, &io); 
+        renderExportGrid(renderer); 
         if (!tile.path.empty()) {
             renderTileMap(renderer, &tile); 
         }
