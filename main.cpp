@@ -5,11 +5,18 @@
 #include <SDL3/SDL.h>
 #include <string>
 
+const int CELL_WIDTH = 49; 
+const int CELL_HEIGHT= 49;
+const int NUM_ROWS = 8; 
+const int NUM_COLS = 8; 
+
 void beginImguiFrame() {
         ImGui_ImplSDLRenderer3_NewFrame();
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
 }
+
+
 struct TileMap {
         std::string path{};
 }; 
@@ -35,11 +42,6 @@ void loadTileMap(SDL_Window* window, void* userdata) {
     SDL_ShowOpenFileDialog(accessFile, userdata, window, nullptr, 0, "./", false); 
 }
 
-
-
-
-
-
 void renderTileMap(SDL_Renderer* renderer, TileMap* tileMap) {
     SDL_Surface* surface = SDL_LoadSurface(tileMap->path.c_str()); 
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface); 
@@ -51,9 +53,9 @@ void renderTileMap(SDL_Renderer* renderer, TileMap* tileMap) {
 
 
 void renderSelectionGrid(SDL_Renderer* renderer) {
-    for(int i = 0; i < 8; i++) {
-        for(int j = 0; j < 8; j++) {
-            SDL_FRect rect{float(j) * 49, float(i) * 49, 49.0f, 49.0f}; 
+    for(int i = 0; i < NUM_ROWS; i++) {
+        for(int j = 0; j < NUM_COLS; j++) {
+            SDL_FRect rect{float(j) * CELL_WIDTH, float(i) * CELL_HEIGHT, CELL_WIDTH, CELL_HEIGHT}; 
 	    SDL_SetRenderDrawColor(renderer, 255.0f, 255.0f, 255.0f, 255.0f); 
             SDL_RenderRect(renderer, &rect); 
         }
@@ -61,9 +63,9 @@ void renderSelectionGrid(SDL_Renderer* renderer) {
 }
 
 void renderExportGrid(SDL_Renderer* renderer) {
-    for(int i = 0; i < 8; i++) {
-        for(int j = 10; j < 18; j++) {
-            SDL_FRect rect{float(j) * 49, float(i) * 49, 49.0f, 49.0f}; 
+    for(int i = 0; i < NUM_ROWS; i++) {
+        for(int j = 10; j < NUM_COLS + 10; j++) {
+            SDL_FRect rect{float(j) * CELL_WIDTH, float(i) * CELL_HEIGHT, CELL_WIDTH, CELL_HEIGHT}; 
 	    SDL_SetRenderDrawColor(renderer, 255.0f, 255.0f, 255.0f, 255.0f); 
             SDL_RenderRect(renderer, &rect); 
         }
@@ -93,7 +95,6 @@ int main(int, char**)
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
                                                               //
     SDL_CreateWindowAndRenderer("Tilemap Editor", 900, 500, SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_HIGH_PIXEL_DENSITY, &window, &renderer); 
-
     SDL_SetRenderVSync(renderer, 1);
     ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
     ImGui_ImplSDLRenderer3_Init(renderer);
