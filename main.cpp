@@ -1,6 +1,7 @@
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlrenderer3.h"
+#include <iostream>
 #include <stdio.h>
 #include <SDL3/SDL.h>
 #include <string>
@@ -16,6 +17,7 @@ void beginImguiFrame() {
         ImGui::NewFrame();
 }
 
+SDL_FRect selectedRectangle{-1, -1, -1, -1}; 
 
 struct TileMap {
         std::string path{};
@@ -73,15 +75,45 @@ void renderExportGrid(SDL_Renderer* renderer) {
 }
 
 
+void convertScreenToGrid(float screenX, float screenY, int& row, int& column) {
+        column = int(screenX / CELL_WIDTH);
+        row = int(screenY / CELL_HEIGHT);
+}
+
+void convertGridToScreen(int row, int column, float& x, float& y) {
+        x = column * CELL_WIDTH; 
+        y = row * CELL_HEIGHT; 
+}
+
 void renderSelectionRect(SDL_Window* window, SDL_Renderer* renderer, ImGuiIO* io) {
     if (ImGui::IsMouseHoveringRect(ImVec2{0, 0}, ImVec2{392, 392}, false)) 
     {
-        float x = io->MousePos.x - 25;
-        float y = io->MousePos.y - 25;
 
-        SDL_FRect rect{x, y, 49.0f, 49.0f}; 
+        int row{}; 
+        int column{};
+        convertScreenToGrid(io->MousePos.x, io->MousePos.y, row, column); 
+        float x{};
+        float y{};
+        convertGridToScreen(row, column, x, y); 
+        SDL_FRect rect{x, y, CELL_WIDTH, CELL_HEIGHT}; 
         SDL_SetRenderDrawColor(renderer, 0.0f, 0.0f, 255.0f, 0.0f); 
         SDL_RenderRect(renderer, &rect); 
+
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) 
+        {
+            int row{}; 
+            int column{};
+            convertScreenToGrid(io->MousePos.x, io->MousePos.y, row, column); 
+            float x{};
+            float y{};
+            convertGridToScreen(row, column, x, y); 
+            selectedRectangle = SDL_FRect{x, y, CELL_WIDTH, CELL_HEIGHT}; 
+        }
+    }
+    if (selectedRectangle.x != -1) 
+    {
+        SDL_SetRenderDrawColor(renderer, 0.0f, 0.0f, 255.0f, 0.0f); 
+        SDL_RenderFillRect(renderer, &selectedRectangle); 
     }
 }
 
