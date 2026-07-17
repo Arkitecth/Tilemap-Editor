@@ -4,11 +4,28 @@
 #include <stdio.h>
 #include <SDL3/SDL.h>
 #include <string>
+#include <vector>
 
 const int CELL_WIDTH = 49; 
 const int CELL_HEIGHT= 49;
 const int NUM_ROWS = 8; 
 const int NUM_COLS = 8; 
+struct Tile 
+{
+    std::string path{};
+    float x{}; 
+    float y{}; 
+}; 
+SDL_FRect selectedRectangle{-1, -1, -1, -1}; 
+
+using TileMap = std::vector<Tile>;
+
+struct State 
+{
+    Tile currentTile{};
+    TileMap currentTileMap{};
+}; 
+
 
 void beginImguiFrame() {
         ImGui_ImplSDLRenderer3_NewFrame();
@@ -16,17 +33,6 @@ void beginImguiFrame() {
         ImGui::NewFrame();
 }
 
-SDL_FRect selectedRectangle{-1, -1, -1, -1}; 
-
-struct TileMap {
-        std::string path{};
-}; 
-
-struct Tile {
-    std::string path{};
-    float x{}; 
-    float y{}; 
-}; 
 
 void SDLCALL accessFile(void* userdata, const char * const *filelist, int filter) {
     if (!filelist) {
@@ -38,26 +44,26 @@ void SDLCALL accessFile(void* userdata, const char * const *filelist, int filter
         return;
     }
     while (*filelist) {
-        Tile* tile = reinterpret_cast<Tile*>(userdata); 
-        tile->path = *filelist; 
-        tile->x = selectedRectangle.x; 
-        tile->y = selectedRectangle.y; 
+        State* state = reinterpret_cast<State*>(userdata); 
+        state->currentTile.path = *filelist; 
+        state->currentTile.x = selectedRectangle.x; 
+        state->currentTile.y = selectedRectangle.y; 
+        state->currentTileMap.push_back(state->currentTile); 
         filelist++;
     }
 } 
 
-void loadTileMap(SDL_Window* window, void* userdata) {
+void loadTile(SDL_Window* window, void* userdata) {
     SDL_ShowOpenFileDialog(accessFile, userdata, window, nullptr, 0, "./", false); 
 }
 
-void renderTile(SDL_Renderer* renderer, Tile* tile) {
-    SDL_Surface* surface = SDL_LoadSurface(tile->path.c_str()); 
+void renderTile(SDL_Renderer* renderer, State* state) {
+    SDL_Surface* surface = SDL_LoadSurface(state->currentTile.path.c_str()); 
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface); 
-    SDL_FRect dstRect{tile->x, tile->y, float(texture->w), float(texture->h)}; 
+    SDL_FRect dstRect{state->currentTile.x, state->currentTile.y, float(texture->w), float(texture->h)}; 
     SDL_RenderTexture(renderer, texture, nullptr, &dstRect); 
     SDL_DestroySurface(surface); 
 }
-
 
 
 void renderSelectionGrid(SDL_Renderer* renderer) {
@@ -138,8 +144,7 @@ int main(int, char**)
     ImGui_ImplSDLRenderer3_Init(renderer);
 
     bool done = false;
-    //TileMap tile{};
-    Tile tile{};
+    State state{};
     while (!done) 
     {
 
@@ -159,8 +164,8 @@ int main(int, char**)
         ImGui::Text("This is some useful text.");
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 
-        if(ImGui::Button("Load TileMap")) {
-            loadTileMap(window, &tile); 
+        if(ImGui::Button("Add Tile")) {
+            loadTile(window, &state); 
         }
 
         ImGui::End(); 
@@ -173,8 +178,8 @@ int main(int, char**)
         renderSelectionGrid(renderer); 
         renderSelectionRect(window, renderer, &io); 
         renderExportGrid(renderer); 
-        if (!tile.path.empty()) {
-            renderTile(renderer, &tile); 
+        if (!state.currentTile.path.empty()) {
+            renderTile(renderer, &state); 
         }
 
         ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
