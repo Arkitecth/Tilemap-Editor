@@ -1,11 +1,11 @@
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlrenderer3.h"
+#include <array>
 #include <iostream>
 #include <stdio.h>
 #include <SDL3/SDL.h>
 #include <string>
-#include <vector>
 
 const int CELL_WIDTH = 49; 
 const int CELL_HEIGHT= 49;
@@ -17,14 +17,18 @@ struct Tile
     float x{}; 
     float y{}; 
 }; 
+
+Tile selectedTile{};
+
 SDL_FRect selectedRectangle{-1, -1, -1, -1}; 
 
-using TileMap = std::vector<Tile>;
+using TileMap = std::array<std::array<Tile, NUM_COLS>, NUM_ROWS>; 
 
 struct State 
 {
     Tile currentTile{};
-    TileMap currentTileMap{};
+    TileMap selectionTileMap{};
+    TileMap canvasTileMap{};
 }; 
 
 
@@ -32,6 +36,16 @@ void beginImguiFrame() {
         ImGui_ImplSDLRenderer3_NewFrame();
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
+}
+
+void convertScreenToGrid(float screenX, float screenY, int& row, int& column) {
+        column = int(screenX / CELL_WIDTH);
+        row = int(screenY / CELL_HEIGHT);
+}
+
+void convertGridToScreen(int row, int column, float& x, float& y) {
+        x = column * CELL_WIDTH; 
+        y = row * CELL_HEIGHT; 
 }
 
 
@@ -49,7 +63,10 @@ void SDLCALL accessFile(void* userdata, const char * const *filelist, int filter
         state->currentTile.path = *filelist; 
         state->currentTile.x = selectedRectangle.x; 
         state->currentTile.y = selectedRectangle.y; 
-        state->currentTileMap.push_back(state->currentTile); 
+        int row{};
+        int column{}; 
+        convertScreenToGrid(state->currentTile.x, state->currentTile.y, row, column); 
+        state->selectionTileMap[row][column] = state->currentTile;
         filelist++;
     }
 } 
@@ -57,13 +74,40 @@ void SDLCALL accessFile(void* userdata, const char * const *filelist, int filter
 void loadTile(SDL_Window* window, void* userdata) {
     SDL_ShowOpenFileDialog(accessFile, userdata, window, nullptr, 0, "./", false); 
 }
-void renderTileMap(SDL_Renderer* renderer, State* state) {
-    for(int i = 0; i < state->currentTileMap.size(); i++) {
-        SDL_Surface* surface = SDL_LoadSurface(state->currentTileMap[i].path.c_str()); 
-        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface); 
-        SDL_FRect dstRect{state->currentTileMap[i].x, state->currentTileMap[i].y, float(texture->w), float(texture->h)}; 
-        SDL_RenderTexture(renderer, texture, nullptr, &dstRect); 
-        SDL_DestroySurface(surface); 
+
+void renderSelectorTileMap(SDL_Renderer* renderer, State* state) {
+    for(int i = 0; i < NUM_ROWS; i++) 
+    {
+        for(int j = 0; j < NUM_COLS; j++) 
+        {
+            if (state->selectionTileMap[i][j].path != "") 
+            {
+                SDL_Surface* surface = SDL_LoadSurface(state->selectionTileMap[i][j].path.c_str()); 
+                SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface); 
+                SDL_FRect dstRect{state->selectionTileMap[i][j].x, state->selectionTileMap[i][j].y, float(texture->w), float(texture->h)}; 
+                SDL_RenderTexture(renderer, texture, nullptr, &dstRect); 
+                SDL_DestroySurface(surface); 
+            
+            }
+        }
+    }
+}
+
+void renderCanvasTileMap(SDL_Renderer* renderer, State* state) {
+    for(int i = 0; i < NUM_ROWS; i++) 
+    {
+        for(int j = 0; j < NUM_COLS; j++) 
+        {
+            if (state->canvasTileMap[i][j].path != "") 
+            {
+                SDL_Surface* surface = SDL_LoadSurface(state->canvasTileMap[i][j].path.c_str()); 
+                SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface); 
+                SDL_FRect dstRect{state->canvasTileMap[i][j].x, state->canvasTileMap[i][j].y, float(texture->w), float(texture->h)}; 
+                SDL_RenderTexture(renderer, texture, nullptr, &dstRect); 
+                SDL_DestroySurface(surface); 
+            
+            }
+        }
     }
 }
 
@@ -89,17 +133,9 @@ void renderExportGrid(SDL_Renderer* renderer) {
 }
 
 
-void convertScreenToGrid(float screenX, float screenY, int& row, int& column) {
-        column = int(screenX / CELL_WIDTH);
-        row = int(screenY / CELL_HEIGHT);
-}
 
-void convertGridToScreen(int row, int column, float& x, float& y) {
-        x = column * CELL_WIDTH; 
-        y = row * CELL_HEIGHT; 
-}
 
-void renderSelectionRect(SDL_Window* window, SDL_Renderer* renderer, ImGuiIO* io) {
+void renderSelectionRect(SDL_Window* window, SDL_Renderer* renderer, ImGuiIO* io, State* state) {
     if (ImGui::IsMouseHoveringRect(ImVec2{0, 0}, ImVec2{392, 392}, false)) 
     {
         int row{}; 
@@ -119,6 +155,7 @@ void renderSelectionRect(SDL_Window* window, SDL_Renderer* renderer, ImGuiIO* io
             float x{};
             float y{};
             convertGridToScreen(row, column, x, y); 
+            state->currentTile = state->selectionTileMap[row][column];
             selectedRectangle = SDL_FRect{x, y, CELL_WIDTH, CELL_HEIGHT}; 
         }
 
@@ -140,7 +177,9 @@ void renderSelectionRect(SDL_Window* window, SDL_Renderer* renderer, ImGuiIO* io
                 float x{};
                 float y{};
                 convertGridToScreen(row, column, x, y); 
-                selectedRectangle = SDL_FRect{x, y, CELL_WIDTH, CELL_HEIGHT}; 
+                state->currentTile.x = x; 
+                state->currentTile.y = y; 
+                state->canvasTileMap[row][column] = state->currentTile;
             }
      }
 
@@ -197,10 +236,9 @@ int main(int, char**)
         SDL_RenderClear(renderer);
         renderSelectionGrid(renderer); 
         renderExportGrid(renderer); 
-        renderSelectionRect(window, renderer, &io); 
-        if (!state.currentTile.path.empty()) {
-            renderTileMap(renderer, &state); 
-        }
+        renderSelectionRect(window, renderer, &io, &state); 
+        renderCanvasTileMap(renderer, &state); 
+        renderSelectorTileMap(renderer, &state); 
         ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
         SDL_RenderPresent(renderer);
     }
