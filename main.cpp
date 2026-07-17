@@ -1,6 +1,7 @@
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlrenderer3.h"
+#include <iostream>
 #include <stdio.h>
 #include <SDL3/SDL.h>
 #include <string>
@@ -101,7 +102,6 @@ void convertGridToScreen(int row, int column, float& x, float& y) {
 void renderSelectionRect(SDL_Window* window, SDL_Renderer* renderer, ImGuiIO* io) {
     if (ImGui::IsMouseHoveringRect(ImVec2{0, 0}, ImVec2{392, 392}, false)) 
     {
-
         int row{}; 
         int column{};
         convertScreenToGrid(io->MousePos.x, io->MousePos.y, row, column); 
@@ -111,7 +111,6 @@ void renderSelectionRect(SDL_Window* window, SDL_Renderer* renderer, ImGuiIO* io
         SDL_FRect rect{x, y, CELL_WIDTH, CELL_HEIGHT}; 
         SDL_SetRenderDrawColor(renderer, 0.0f, 0.0f, 255.0f, 0.0f); 
         SDL_RenderRect(renderer, &rect); 
-
         if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) 
         {
             int row{}; 
@@ -122,7 +121,29 @@ void renderSelectionRect(SDL_Window* window, SDL_Renderer* renderer, ImGuiIO* io
             convertGridToScreen(row, column, x, y); 
             selectedRectangle = SDL_FRect{x, y, CELL_WIDTH, CELL_HEIGHT}; 
         }
-    }
+
+    } else if(ImGui::IsMouseHoveringRect(ImVec2{400, 0}, ImVec2{900, 900}, false)) {
+            int row{}; 
+            int column{};
+            convertScreenToGrid(io->MousePos.x, io->MousePos.y, row, column); 
+            float x{};
+            float y{};
+            convertGridToScreen(row, column, x, y); 
+            SDL_FRect rect{x, y, CELL_WIDTH, CELL_HEIGHT}; 
+            SDL_SetRenderDrawColor(renderer, 0.0f, 0.0f, 255.0f, 0.0f); 
+            SDL_RenderRect(renderer, &rect); 
+            if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) 
+            {
+                int row{}; 
+                int column{};
+                convertScreenToGrid(io->MousePos.x, io->MousePos.y, row, column); 
+                float x{};
+                float y{};
+                convertGridToScreen(row, column, x, y); 
+                selectedRectangle = SDL_FRect{x, y, CELL_WIDTH, CELL_HEIGHT}; 
+            }
+     }
+
     if (selectedRectangle.x != -1) 
     {
         SDL_SetRenderDrawColor(renderer, 0.0f, 0.0f, 255.0f, 0.0f); 
@@ -160,7 +181,7 @@ int main(int, char**)
         }
         beginImguiFrame(); 
 
-        ImGui::Begin("Hello, world!");
+        ImGui::Begin("Select Tile Position");
         ImGui::Text("This is some useful text.");
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 
@@ -175,8 +196,8 @@ int main(int, char**)
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0); 
         SDL_RenderClear(renderer);
         renderSelectionGrid(renderer); 
-        renderSelectionRect(window, renderer, &io); 
         renderExportGrid(renderer); 
+        renderSelectionRect(window, renderer, &io); 
         if (!state.currentTile.path.empty()) {
             renderTileMap(renderer, &state); 
         }
