@@ -56,13 +56,14 @@ void SDLCALL accessFile(void* userdata, const char * const *filelist, int filter
 void loadTile(SDL_Window* window, void* userdata) {
     SDL_ShowOpenFileDialog(accessFile, userdata, window, nullptr, 0, "./", false); 
 }
-
-void renderTile(SDL_Renderer* renderer, State* state) {
-    SDL_Surface* surface = SDL_LoadSurface(state->currentTile.path.c_str()); 
-    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface); 
-    SDL_FRect dstRect{state->currentTile.x, state->currentTile.y, float(texture->w), float(texture->h)}; 
-    SDL_RenderTexture(renderer, texture, nullptr, &dstRect); 
-    SDL_DestroySurface(surface); 
+void renderTileMap(SDL_Renderer* renderer, State* state) {
+    for(int i = 0; i < state->currentTileMap.size(); i++) {
+        SDL_Surface* surface = SDL_LoadSurface(state->currentTileMap[i].path.c_str()); 
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface); 
+        SDL_FRect dstRect{state->currentTileMap[i].x, state->currentTileMap[i].y, float(texture->w), float(texture->h)}; 
+        SDL_RenderTexture(renderer, texture, nullptr, &dstRect); 
+        SDL_DestroySurface(surface); 
+    }
 }
 
 
@@ -157,7 +158,6 @@ int main(int, char**)
             if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && event.window.windowID == SDL_GetWindowID(window))
                 done = true;
         }
-
         beginImguiFrame(); 
 
         ImGui::Begin("Hello, world!");
@@ -169,7 +169,6 @@ int main(int, char**)
         }
 
         ImGui::End(); 
-
        
         ImGui::Render();
         SDL_SetRenderScale(renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
@@ -179,9 +178,8 @@ int main(int, char**)
         renderSelectionRect(window, renderer, &io); 
         renderExportGrid(renderer); 
         if (!state.currentTile.path.empty()) {
-            renderTile(renderer, &state); 
+            renderTileMap(renderer, &state); 
         }
-
         ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
         SDL_RenderPresent(renderer);
     }
