@@ -1,7 +1,6 @@
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlrenderer3.h"
-#include <iostream>
 #include <stdio.h>
 #include <SDL3/SDL.h>
 #include <string>
@@ -23,6 +22,12 @@ struct TileMap {
         std::string path{};
 }; 
 
+struct Tile {
+    std::string path{};
+    float x{}; 
+    float y{}; 
+}; 
+
 void SDLCALL accessFile(void* userdata, const char * const *filelist, int filter) {
     if (!filelist) {
         SDL_Log("An error occured: %s", SDL_GetError());
@@ -33,21 +38,22 @@ void SDLCALL accessFile(void* userdata, const char * const *filelist, int filter
         return;
     }
     while (*filelist) {
-        //SDL_Log("Full path to selected file: '%s'", *filelist);
-        TileMap* tile = reinterpret_cast<TileMap*>(userdata); 
+        Tile* tile = reinterpret_cast<Tile*>(userdata); 
         tile->path = *filelist; 
+        tile->x = selectedRectangle.x; 
+        tile->y = selectedRectangle.y; 
         filelist++;
     }
-}; 
+} 
 
 void loadTileMap(SDL_Window* window, void* userdata) {
     SDL_ShowOpenFileDialog(accessFile, userdata, window, nullptr, 0, "./", false); 
 }
 
-void renderTileMap(SDL_Renderer* renderer, TileMap* tileMap) {
-    SDL_Surface* surface = SDL_LoadSurface(tileMap->path.c_str()); 
+void renderTile(SDL_Renderer* renderer, Tile* tile) {
+    SDL_Surface* surface = SDL_LoadSurface(tile->path.c_str()); 
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface); 
-    SDL_FRect dstRect{100.0f, 100.0f, float(texture->w), float(texture->h)}; 
+    SDL_FRect dstRect{tile->x, tile->y, float(texture->w), float(texture->h)}; 
     SDL_RenderTexture(renderer, texture, nullptr, &dstRect); 
     SDL_DestroySurface(surface); 
 }
@@ -132,7 +138,8 @@ int main(int, char**)
     ImGui_ImplSDLRenderer3_Init(renderer);
 
     bool done = false;
-    TileMap tile{};
+    //TileMap tile{};
+    Tile tile{};
     while (!done) 
     {
 
@@ -167,7 +174,7 @@ int main(int, char**)
         renderSelectionRect(window, renderer, &io); 
         renderExportGrid(renderer); 
         if (!tile.path.empty()) {
-            renderTileMap(renderer, &tile); 
+            renderTile(renderer, &tile); 
         }
 
         ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
