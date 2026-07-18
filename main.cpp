@@ -6,14 +6,13 @@
 #include <stdio.h>
 #include <SDL3/SDL.h>
 #include <string>
-
 const int CELL_WIDTH = 49; 
 const int CELL_HEIGHT= 49;
 const int NUM_ROWS = 8; 
 const int NUM_COLS = 8; 
 struct Tile 
 {
-    std::string path{};
+    SDL_Texture* texture{};
     float x{}; 
     float y{}; 
 }; 
@@ -26,6 +25,9 @@ using TileMap = std::array<std::array<Tile, NUM_COLS>, NUM_ROWS>;
 
 struct State 
 {
+    SDL_Renderer* renderer{}; 
+    SDL_Window* window{}; 
+    std::string currentFilePath{};
     Tile currentTile{};
     TileMap selectionTileMap{};
     TileMap canvasTileMap{};
@@ -59,10 +61,16 @@ void SDLCALL accessFile(void* userdata, const char * const *filelist, int filter
         return;
     }
     while (*filelist) {
+        //Initalize Tile
         State* state = reinterpret_cast<State*>(userdata); 
-        state->currentTile.path = *filelist; 
+        state->currentFilePath = *filelist; 
         state->currentTile.x = selectedRectangle.x; 
         state->currentTile.y = selectedRectangle.y; 
+        SDL_Surface* surface = SDL_LoadSurface(state->currentFilePath.c_str()); 
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(state->renderer, surface); 
+        state->currentTile.texture = texture; 
+        SDL_DestroySurface(surface); 
+        //Place Tile
         int row{};
         int column{}; 
         convertScreenToGrid(state->currentTile.x, state->currentTile.y, row, column); 
@@ -71,46 +79,52 @@ void SDLCALL accessFile(void* userdata, const char * const *filelist, int filter
     }
 } 
 
-void loadTile(SDL_Window* window, void* userdata) {
-    SDL_ShowOpenFileDialog(accessFile, userdata, window, nullptr, 0, "./", false); 
+void loadTile(void* state) {
+    State* s = reinterpret_cast<State*>(state); 
+    SDL_ShowOpenFileDialog(accessFile, state, s->window, nullptr, 0, "./", false); 
 }
 
-void renderSelectorTileMap(SDL_Renderer* renderer, State* state) {
+void renderSelectorTileMap(State* state) {
     for(int i = 0; i < NUM_ROWS; i++) 
     {
         for(int j = 0; j < NUM_COLS; j++) 
         {
-            if (state->selectionTileMap[i][j].path != "") 
+            if (state->selectionTileMap[i][j].texture) 
             {
-                SDL_Surface* surface = SDL_LoadSurface(state->selectionTileMap[i][j].path.c_str()); 
-                SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface); 
-                SDL_FRect dstRect{state->selectionTileMap[i][j].x, state->selectionTileMap[i][j].y, float(texture->w), float(texture->h)}; 
-                SDL_RenderTexture(renderer, texture, nullptr, &dstRect); 
-                SDL_DestroySurface(surface); 
+                SDL_FRect dstRect
+                {
+                    state->selectionTileMap[i][j].x, 
+                    state->selectionTileMap[i][j].y, 
+                    float(state->selectionTileMap[i][j].texture->w), 
+                    float(state->selectionTileMap[i][j].texture->h)
+                }; 
+
+                SDL_RenderTexture(state->renderer, state->selectionTileMap[i][j].texture, nullptr, &dstRect); 
             
             }
         }
     }
 }
 
-void renderCanvasTileMap(SDL_Renderer* renderer, State* state) {
+void renderCanvasTileMap(State* state) {
     for(int i = 0; i < NUM_ROWS; i++) 
     {
         for(int j = 0; j < NUM_COLS; j++) 
         {
-            if (state->canvasTileMap[i][j].path != "") 
+            if (state->canvasTileMap[i][j].texture) 
             {
-                SDL_Surface* surface = SDL_LoadSurface(state->canvasTileMap[i][j].path.c_str()); 
-                SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface); 
-                SDL_FRect dstRect{state->canvasTileMap[i][j].x, state->canvasTileMap[i][j].y, float(texture->w), float(texture->h)}; 
-                SDL_RenderTexture(renderer, texture, nullptr, &dstRect); 
-                SDL_DestroySurface(surface); 
-            
+                SDL_FRect dstRect
+                {
+                    state->canvasTileMap[i][j].x, 
+                    state->canvasTileMap[i][j].y, 
+                    float(state->canvasTileMap[i][j].texture->w), 
+                    float(state->canvasTileMap[i][j].texture->h)
+                }; 
+                SDL_RenderTexture(state->renderer, state->canvasTileMap[i][j].texture, nullptr, &dstRect); 
             }
         }
     }
 }
-
 
 void renderSelectionGrid(SDL_Renderer* renderer) {
     for(int i = 0; i < NUM_ROWS; i++) {
@@ -134,8 +148,7 @@ void renderExportGrid(SDL_Renderer* renderer) {
 
 
 
-
-void renderSelectionRect(SDL_Window* window, SDL_Renderer* renderer, ImGuiIO* io, State* state) {
+void renderSelectionRect(ImGuiIO* io, State* state) {
     if (ImGui::IsMouseHoveringRect(ImVec2{0, 0}, ImVec2{392, 392}, false)) 
     {
         int row{}; 
@@ -145,8 +158,8 @@ void renderSelectionRect(SDL_Window* window, SDL_Renderer* renderer, ImGuiIO* io
         float y{};
         convertGridToScreen(row, column, x, y); 
         SDL_FRect rect{x, y, CELL_WIDTH, CELL_HEIGHT}; 
-        SDL_SetRenderDrawColor(renderer, 0.0f, 0.0f, 255.0f, 0.0f); 
-        SDL_RenderRect(renderer, &rect); 
+        SDL_SetRenderDrawColor(state->renderer, 0.0f, 0.0f, 255.0f, 0.0f); 
+        SDL_RenderRect(state->renderer, &rect); 
         if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) 
         {
             int row{}; 
@@ -156,10 +169,12 @@ void renderSelectionRect(SDL_Window* window, SDL_Renderer* renderer, ImGuiIO* io
             float y{};
             convertGridToScreen(row, column, x, y); 
             state->currentTile = state->selectionTileMap[row][column];
+            state->currentTile.x = x; 
+            state->currentTile.y = y; 
             selectedRectangle = SDL_FRect{x, y, CELL_WIDTH, CELL_HEIGHT}; 
         }
 
-    } else if(ImGui::IsMouseHoveringRect(ImVec2{400, 0}, ImVec2{900, 900}, false)) {
+    } else if(ImGui::IsMouseHoveringRect(ImVec2{500, 0}, ImVec2{900, 500}, false)) {
             int row{}; 
             int column{};
             convertScreenToGrid(io->MousePos.x, io->MousePos.y, row, column); 
@@ -167,8 +182,8 @@ void renderSelectionRect(SDL_Window* window, SDL_Renderer* renderer, ImGuiIO* io
             float y{};
             convertGridToScreen(row, column, x, y); 
             SDL_FRect rect{x, y, CELL_WIDTH, CELL_HEIGHT}; 
-            SDL_SetRenderDrawColor(renderer, 0.0f, 0.0f, 255.0f, 0.0f); 
-            SDL_RenderRect(renderer, &rect); 
+            SDL_SetRenderDrawColor(state->renderer, 0.0f, 0.0f, 255.0f, 0.0f); 
+            SDL_RenderRect(state->renderer, &rect); 
             if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) 
             {
                 int row{}; 
@@ -179,43 +194,40 @@ void renderSelectionRect(SDL_Window* window, SDL_Renderer* renderer, ImGuiIO* io
                 convertGridToScreen(row, column, x, y); 
                 state->currentTile.x = x; 
                 state->currentTile.y = y; 
-                state->canvasTileMap[row][column] = state->currentTile;
+                state->canvasTileMap[row % NUM_ROWS][column % NUM_COLS] = state->currentTile;
             }
      }
 
     if (selectedRectangle.x != -1) 
     {
-        SDL_SetRenderDrawColor(renderer, 0.0f, 0.0f, 255.0f, 0.0f); 
-        SDL_RenderFillRect(renderer, &selectedRectangle); 
+        SDL_SetRenderDrawColor(state->renderer, 0.0f, 0.0f, 255.0f, 0.0f); 
+        SDL_RenderFillRect(state->renderer, &selectedRectangle); 
     }
 }
 
 int main(int, char**)
 {
-    SDL_Renderer* renderer{}; 
-    SDL_Window* window{}; 
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-                                                              //
-    SDL_CreateWindowAndRenderer("Tilemap Editor", 900, 500, SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_HIGH_PIXEL_DENSITY, &window, &renderer); 
-    SDL_SetRenderVSync(renderer, 1);
-    ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
-    ImGui_ImplSDLRenderer3_Init(renderer);
-
     bool done = false;
     State state{};
+                                                              //
+    SDL_CreateWindowAndRenderer("Tilemap Editor", 900, 500, SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_HIGH_PIXEL_DENSITY, &state.window, &state.renderer); 
+    SDL_SetRenderVSync(state.renderer, 1);
+    ImGui_ImplSDL3_InitForSDLRenderer(state.window, state.renderer);
+    ImGui_ImplSDLRenderer3_Init(state.renderer);
+
     while (!done) 
     {
-
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
             ImGui_ImplSDL3_ProcessEvent(&event);
             if (event.type == SDL_EVENT_QUIT)
                 done = true;
-            if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && event.window.windowID == SDL_GetWindowID(window))
+            if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED && event.window.windowID == SDL_GetWindowID(state.window))
                 done = true;
         }
         beginImguiFrame(); 
@@ -225,21 +237,21 @@ int main(int, char**)
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 
         if(ImGui::Button("Add Tile")) {
-            loadTile(window, &state); 
+            loadTile(&state); 
         }
 
         ImGui::End(); 
        
         ImGui::Render();
-        SDL_SetRenderScale(renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0); 
-        SDL_RenderClear(renderer);
-        renderSelectionGrid(renderer); 
-        renderExportGrid(renderer); 
-        renderSelectionRect(window, renderer, &io, &state); 
-        renderCanvasTileMap(renderer, &state); 
-        renderSelectorTileMap(renderer, &state); 
-        ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
-        SDL_RenderPresent(renderer);
+        SDL_SetRenderScale(state.renderer, io.DisplayFramebufferScale.x, io.DisplayFramebufferScale.y);
+        SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 0); 
+        SDL_RenderClear(state.renderer);
+        renderSelectionGrid(state.renderer); 
+        renderExportGrid(state.renderer); 
+        renderSelectionRect(&io, &state); 
+        renderCanvasTileMap(&state); 
+        renderSelectorTileMap(&state); 
+        ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), state.renderer);
+        SDL_RenderPresent(state.renderer);
     }
 }
